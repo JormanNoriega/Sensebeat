@@ -21,7 +21,8 @@ class ChartLoader {
 
       const songFolders = [
         { id: 'song1', name: 'Song 1' },
-        { id: 'song2', name: 'Song 2' }
+        { id: 'song2', name: 'Song 2' },
+        { id: 'song3', name: 'Song 3' }
       ];
 
       this.songs = [];

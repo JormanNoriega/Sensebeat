@@ -72,6 +72,8 @@ class Game {
       pauseMenu: false
     };
 
+    this.backgroundMusicPath = 'assets/audio/fondo/song.mp3';
+
     this.init();
   }
 
@@ -103,6 +105,12 @@ class Game {
       // Set initial state
       this.changeState(this.STATE.MENU);
 
+      // Start background music
+      this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
+
+      // Add mute button to page
+      this.createMuteButton();
+
       // Start game loop
       this.startGameLoop();
 
@@ -130,6 +138,55 @@ class Game {
     this.resizeCanvas();
 
     window.addEventListener('resize', () => this.resizeCanvas());
+  }
+
+  /**
+   * Create mute button in the top-right corner
+   */
+  createMuteButton() {
+    const existingBtn = document.getElementById('mute-button');
+    if (existingBtn) return;
+
+    const muteBtn = document.createElement('button');
+    muteBtn.id = 'mute-button';
+    muteBtn.innerHTML = '🔊';
+    muteBtn.title = 'Toggle background music';
+    muteBtn.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid #00FFFF;
+      background: rgba(0, 0, 0, 0.8);
+      color: #00FFFF;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      transition: all 0.2s ease;
+    `;
+
+    muteBtn.addEventListener('click', () => {
+      const isMuted = this.audioManager.toggleMute();
+      muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
+      muteBtn.style.borderColor = isMuted ? '#FF0080' : '#00FFFF';
+      muteBtn.style.boxShadow = isMuted ? '0 0 15px rgba(255, 0, 128, 0.3)' : '0 0 15px rgba(0, 255, 255, 0.3)';
+    });
+
+    muteBtn.addEventListener('mouseenter', () => {
+      muteBtn.style.transform = 'scale(1.1)';
+    });
+
+    muteBtn.addEventListener('mouseleave', () => {
+      muteBtn.style.transform = 'scale(1)';
+    });
+
+    document.body.appendChild(muteBtn);
   }
 
   /**
@@ -166,16 +223,27 @@ class Game {
 
     console.log(`🔄 State changed: ${this.previousState} → ${newState}`);
 
+    // Stop background music when entering gameplay
+    if (newState === this.STATE.GAMEPLAY || newState === this.STATE.COUNTDOWN) {
+      this.audioManager.stopMusic();
+    }
+
     // Setup new state
     switch (newState) {
       case this.STATE.MENU:
         this.uiVisible.mainMenu = true;
         this.mainMenu.show();
+        if (!this.audioManager.isMusicPlaying) {
+          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
+        }
         break;
 
       case this.STATE.LEVEL_SELECT:
         this.uiVisible.levelSelect = true;
         this.levelSelect.show();
+        if (!this.audioManager.isMusicPlaying) {
+          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
+        }
         break;
 
       case this.STATE.GAMEPLAY:
@@ -188,12 +256,18 @@ class Game {
         this.uiVisible.resultsScreen = true;
         if (this.gameplayUI) this.gameplayUI.hide();
         this.resultsScreen.show();
+        if (!this.audioManager.isMusicPlaying) {
+          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
+        }
         break;
 
       case this.STATE.SETTINGS:
         this.uiVisible.settingsScreen = true;
         if (this.gameplayUI) this.gameplayUI.hide();
         this.settingsScreen.show();
+        if (!this.audioManager.isMusicPlaying) {
+          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
+        }
         break;
 
       case this.STATE.PAUSE:
@@ -269,6 +343,7 @@ class Game {
     }
 
     if (this.audioManager) {
+      this.audioManager.stopMusic();
       this.audioManager.playMusic(
         this.currentSong.audioPath,
         this.currentChart.offsetMs / 1000,
@@ -415,7 +490,8 @@ class Game {
 
       lane.deactivate();
 
-      this.vibrateGamepad(laneIndex, 0.5 + (accuracy === 'PERFECT' ? 0.5 : 0));
+      const vibrationIntensity = accuracy === 'PERFECT' ? 1.0 : (accuracy === 'GOOD' ? 0.85 : 0.7);
+      this.vibrateGamepad(laneIndex, vibrationIntensity);
 
       if (this.gameplayUI) {
         this.gameplayUI.updateScore(this.scoreManager.getScore());
@@ -424,6 +500,7 @@ class Game {
         this.gameplayUI.showHitEffect(laneIndex, accuracy);
       }
     } else {
+      this.vibrateGamepad(laneIndex, 0.5);
       setTimeout(() => {
         lane.deactivate();
       }, 100);
@@ -432,14 +509,15 @@ class Game {
 
   /**
    * Vibrate gamepad for haptic feedback based on lane
+   * More intense vibration for higher lanes (accessibility feature)
    * @param {number} laneIndex - Lane index (0-3)
-   * @param {number} intensity - Vibration intensity (0-1)
+   * @param {number} intensity - Vibration intensity multiplier (0-1)
    */
   vibrateGamepad(laneIndex, intensity) {
-    const laneVibrationMap = [0.3, 0.5, 0.7, 1.0];
-    const vibrationStrength = laneVibrationMap[laneIndex] * intensity;
+    const baseVibration = [0.7, 0.8, 0.9, 1.0];
+    const vibrationStrength = Math.min(1.0, baseVibration[laneIndex] * intensity);
 
-    this.inputManager.vibrateGamepad(vibrationStrength, 100, 0);
+    this.inputManager.vibrateGamepad(vibrationStrength, 200, 0);
   }
 
   /**
@@ -481,7 +559,7 @@ class Game {
         if (this.gameplayUI) {
           this.gameplayUI.showHitEffect(note.lane, 'MISS');
         }
-        this.vibrateGamepad(note.lane, 0.2);
+        this.vibrateGamepad(note.lane, 0.6);
         return false;
       }
       return true;

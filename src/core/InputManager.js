@@ -174,13 +174,18 @@ class InputManager {
    * Check gamepad buttons
    */
   checkGamepadButtons(gamepad, state) {
-    // Map buttons: 0=A, 1=B, 2=X, 3=Y, 4=LB, 5=RB
-    // For lane control: 0=Right, 2=Down, 3=Up, 4=Left
     const buttonLaneMap = {
-      0: 'k', // Right (A button)
-      2: 'f', // Down (X button)
-      3: 'j', // Up (Y button)
-      4: 'd'  // Left (LB button)
+      0: 'k', // Button A / Cross - Right
+      1: null, // Button B / Circle
+      2: 'f', // Button X / Square - Down
+      3: 'j', // Button Y / Triangle - Up
+      4: 'd', // LB / L1 - Left
+      5: 'j', // RB / R1 - Up
+      6: 'f', // LT / L2 - Down
+      7: 'k', // RT / R2 - Right
+      8: null, // Select / Back
+      9: null, // Start / Options
+      10: null // L3 (left stick click)
     };
 
     gamepad.buttons.forEach((button, index) => {
@@ -188,13 +193,11 @@ class InputManager {
       const wasPressed = state.buttonsPressed.has(index);
 
       if (pressed && !wasPressed) {
-        // Button pressed
         state.buttonsPressed.add(index);
         if (buttonLaneMap[index]) {
           this.processInput(buttonLaneMap[index]);
         }
       } else if (!pressed && wasPressed) {
-        // Button released
         state.buttonsPressed.delete(index);
       }
     });
