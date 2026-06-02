@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SensaBeat - Test Mode</title>
+  <link rel="stylesheet" href="src/styles/main.css">
+  <style>
+    #test-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      border: 3px solid #00FFFF;
+      padding: 40px;
+      border-radius: 12px;
+      z-index: 500;
+      text-align: center;
+      max-width: 600px;
+      box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+    }
+
+    #test-container h2 {
+      color: #FFFF00;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+      font-size: 32px;
+    }
+
+    #test-container h3 {
+      color: #00FFFF;
+      margin: 20px 0 10px 0;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+
+    #test-container p {
+      color: #fff;
+      margin: 8px 0;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .instruction-box {
+      background: rgba(0, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #00FFFF;
+      text-align: left;
+    }
+
+    .instruction-box strong {
+      color: #FFFF00;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+
+    .btn-test {
+      padding: 12px 24px;
+      font-size: 14px;
+      background: #FF0080;
+      color: #fff;
+      border: 2px solid #FF0080;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-weight: bold;
+      transition: all 0.3s;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .btn-test:hover:not(:disabled) {
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.5);
+      transform: scale(1.05);
+    }
+
+    .btn-test:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #00FFFF;
+      border-color: #00FFFF;
+      color: #000;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+
+    .status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      min-height: 20px;
+    }
+
+    .status.success {
+      background: rgba(0, 255, 0, 0.2);
+      color: #00FF00;
+      border: 1px solid #00FF00;
+    }
+
+    .status.error {
+      background: rgba(255, 0, 128, 0.2);
+      color: #FF0080;
+      border: 1px solid #FF0080;
+    }
+
+    .step {
+      margin: 8px 0;
+      text-align: left;
+      color: #fff;
+    }
+
+    .step-num {
+      display: inline-block;
+      background: #FF0080;
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      margin-right: 8px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #FF0080;
+      border: none;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <div id="test-container">
+    <button class="close-btn" onclick="closeTest()">×</button>
+    
+    <h2>🎮 TEST MODE</h2>
+    <p style="color: #888; margin-bottom: 20px;">Prueba SensaBeat sin archivos MP3</p>
+
+    <div class="instruction-box">
+      <h3 style="margin-top: 0;">⚡ Opción 1: Prueba Rápida</h3>
+      <div class="step">
+        <span class="step-num">1</span>
+        <strong>Clic en "Start Test Game"</strong>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <strong>Presiona D/F/J/K</strong> al ritmo del beat
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        Obtén puntos por golpes perfectos
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-test" onclick="startTestGame()">▶ Start Test Game</button>
+    </div>
+
+    <hr style="border: 1px solid #444; margin: 20px 0;">
+
+    <div class="instruction-box">
+      <h3 style="margin-top: 0;">📁 Opción 2: Con Tus MP3s</h3>
+      <div class="step">
+        <span class="step-num">1</span>
+        Coloca tu <strong>song.mp3</strong> en:
+        <div style="background: #000; padding: 8px; margin-top: 5px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+          assets/audio/song1/song.mp3
+        </div>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        Clic en <strong>"Play with Files"</strong>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-test btn-secondary" onclick="goToGame()">🎮 Play with Files</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <!-- Core Systems -->
+  <script src="src/core/AudioManager.js"></script>
+  <script src="src/core/InputManager.js"></script>
+  <script src="src/core/ChartLoader.js"></script>
+  <script src="src/core/ScoreManager.js"></script>
+  <script src="src/core/NoteSpawner.js"></script>
+
+  <!-- Entities -->
+  <script src="src/entities/Note.js"></script>
+  <script src="src/entities/Lane.js"></script>
+
+  <!-- UI Screens -->
+  <script src="src/ui/MainMenu.js"></script>
+  <script src="src/ui/LevelSelect.js"></script>
+  <script src="src/ui/GameplayUI.js"></script>
+  <script src="src/ui/ResultsScreen.js"></script>
+  <script src="src/ui/SettingsScreen.js"></script>
+
+  <!-- Main Game Controller -->
+  <script src="src/core/Game.js"></script>
+
+  <script>
+    let game = null;
+
+    /**
+     * Start test game with synthetic audio
+     */
+    function startTestGame() {
+      try {
+        // Create test chart
+        const testChart = {
+          bpm: 120,
+          timeFormat: 's',
+          offsetMs: 0,
+          totalNotes: 24,
+          notes: [
+            { time: 1, lane: 0 }, { time: 1.5, lane: 1 },
+            { time: 2, lane: 2 }, { time: 2.5, lane: 3 },
+            { time: 3, lane: 0 }, { time: 3.5, lane: 1 },
+            { time: 4, lane: 2 }, { time: 4.5, lane: 3 },
+            { time: 5, lane: 1 }, { time: 5.5, lane: 2 },
+            { time: 6, lane: 0 }, { time: 6.5, lane: 3 },
+            { time: 7, lane: 1 }, { time: 7.5, lane: 2 },
+            { time: 8, lane: 0 }, { time: 8.5, lane: 3 },
+            { time: 9, lane: 0 }, { time: 9.5, lane: 1 },
+            { time: 10, lane: 2 }, { time: 10.5, lane: 3 },
+            { time: 11, lane: 1 }, { time: 11.5, lane: 2 },
+            { time: 12, lane: 0 }, { time: 12.5, lane: 3 }
+          ]
+        };
+
+        // Hide test UI
+        document.getElementById('test-container').style.display = 'none';
+
+        // Initialize game
+        game = new Game();
+
+        // Create a simple test song
+        const testSong = {
+          id: 'test',
+          name: '🧪 Test Mode',
+          audioPath: 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==',
+          chartPath: 'test.json'
+        };
+
+        // Set up game state manually
+        game.currentSong = testSong;
+        game.currentChart = testChart;
+        game.initializeLanes();
+
+        game.noteSpawner = new NoteSpawner(testChart, game.lanes, (note) => {
+          console.log(`✅ Note spawned! Lane: ${note.lane}, Time: ${note.spawnTime.toFixed(2)}s`);
+          game.notes.push(note);
+        });
+
+        // Create a dummy audio element that ticks
+        const originalMusicAudio = game.audioManager.musicAudio;
+        
+        // Simulate audio playback time
+        let startTime = null;
+        let isPlaying = false;
+        let simulatedTime = 0;
+        
+        const mockAudio = {
+          src: '',
+          currentTime: 0,
+          volume: game.audioManager.musicVolume,
+          play: function() {
+            console.log('🎵 Test audio playback started');
+            isPlaying = true;
+            startTime = Date.now();
+            simulatedTime = 0;
+            return Promise.resolve();
+          },
+          pause: function() {
+            console.log('⏸️ Test audio paused');
+            isPlaying = false;
+          },
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          get currentTime() {
+            if (!isPlaying) return simulatedTime;
+            simulatedTime = (Date.now() - startTime) / 1000;
+            return simulatedTime;
+          },
+          set currentTime(value) {
+            simulatedTime = value;
+            if (isPlaying) {
+              startTime = Date.now() - (value * 1000);
+            }
+          },
+          onended: null
+        };
+
+        // Replace musicAudio with mock
+        game.audioManager.musicAudio = mockAudio;
+        game.audioManager.isMusicPlaying = false;
+
+        console.log('📊 Test setup complete. Starting countdown...');
+        
+        // Start countdown and gameplay
+        setTimeout(() => {
+          game.changeState(game.STATE.GAMEPLAY);
+        }, 100);
+
+      } catch (error) {
+        showStatus('❌ Error: ' + error.message, 'error');
+        console.error(error);
+      }
+    }
+
+    /**
+     * Go to main game
+     */
+    function goToGame() {
+      window.location.href = 'game.html';
+    }
+
+    /**
+     * Close test mode
+     */
+    function closeTest() {
+      window.location.href = 'game.html';
+    }
+
+    /**
+     * Show status message
+     */
+    function showStatus(message, type) {
+      const status = document.getElementById('status');
+      status.className = 'status ' + type;
+      status.textContent = message;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🎮 SensaBeat Test Mode Ready');
+      console.log('Click "Start Test Game" to begin');
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SensaBeat - A browser-based rhythm game inspired by Friday Night Funkin'">
+  <title>SensaBeat - Rhythm Game</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23FF0080'>♪</text></svg>">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+  <!-- Game Container -->
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <!-- Core Systems -->
+  <script src="src/core/AudioManager.js"></script>
+  <script src="src/core/InputManager.js"></script>
+  <script src="src/core/ChartLoader.js"></script>
+  <script src="src/core/ScoreManager.js"></script>
+  <script src="src/core/NoteSpawner.js"></script>
+
+  <!-- Entities -->
+  <script src="src/entities/Note.js"></script>
+  <script src="src/entities/Lane.js"></script>
+
+  <!-- UI Screens -->
+  <script src="src/ui/MainMenu.js"></script>
+  <script src="src/ui/LevelSelect.js"></script>
+  <script src="src/ui/GameplayUI.js"></script>
+  <script src="src/ui/ResultsScreen.js"></script>
+  <script src="src/ui/SettingsScreen.js"></script>
+
+  <!-- Main Game Controller -->
+  <script src="src/core/Game.js"></script>
+
+  <!-- Initialize Game -->
+  <script>
+    // Initialize game on page load
+    let game;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🎮 SensaBeat Initializing...');
+      game = new Game();
+    });
+
+    // Handle page visibility
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && game && game.currentState === game.STATE.GAMEPLAY) {
+        game.changeState(game.STATE.PAUSE);
+      }
+    });
+
+    // Handle window focus
+    window.addEventListener('blur', () => {
+      if (game && game.currentState === game.STATE.GAMEPLAY) {
+        game.changeState(game.STATE.PAUSE);
+      }
+    });
+  </script>
+</body>
+</html>
