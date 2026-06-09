@@ -1,148 +1,79 @@
 /**
- * Game.js - Main game controller
- * Orchestrates all game systems and manages game states
+ * Game.js - Main game controller for Simon Memory Game
+ * Simple, accessible memory game for blind players
  */
 
 class Game {
   constructor() {
-    // Game states
     this.STATE = {
       LOADING: 'loading',
-      MENU: 'menu',
-      LEVEL_SELECT: 'levelSelect',
-      GAMEPLAY: 'gameplay',
-      RESULTS: 'results',
-      SETTINGS: 'settings',
-      PAUSE: 'pause',
-      COUNTDOWN: 'countdown'
+      TUTORIAL: 'tutorial',
+      SIMON_PLAY: 'simonPlay',
+      RESULTS: 'results'
     };
 
     this.currentState = this.STATE.LOADING;
     this.previousState = null;
 
-    // Core systems
-    this.audioManager = new AudioManager();
-    this.inputManager = new InputManager();
-    this.scoreManager = new ScoreManager();
-    this.chartLoader = new ChartLoader();
-    this.noteSpawner = null;
+    this.audioManager = null;
+    this.inputManager = null;
+    this.voiceManager = null;
 
-    // Game data
-    this.currentSong = null;
-    this.currentChart = null;
-    this.lanes = [];
-    this.notes = [];
-    this.activeLanes = new Map();
+    this.simonGame = null;
+    this.simonUI = null;
+    this.tutorialScreen = null;
+    this.simonResultsScreen = null;
 
-    // UI systems
-    this.mainMenu = null;
-    this.levelSelect = null;
-    this.gameplayUI = null;
-    this.resultsScreen = null;
-    this.settingsScreen = null;
-
-    // Canvas and rendering
     this.canvas = null;
     this.ctx = null;
-    this.gameContainer = null;
-
-    // Game loop
-    this.isRunning = false;
-    this.frameTime = 0;
-    this.deltaTime = 0;
-    this.lastFrameTime = 0;
-    this.animationFrameId = null;
-
-    // Settings
-    this.settings = {
-      musicVolume: 0.7,
-      sfxVolume: 0.5,
-      difficulty: 'normal',
-      showDebug: false,
-      enableVibration: false
-    };
-
-    // UI state
-    this.uiVisible = {
-      mainMenu: true,
-      levelSelect: false,
-      gameplayUI: false,
-      resultsScreen: false,
-      settingsScreen: false,
-      pauseMenu: false
-    };
-
-    this.backgroundMusicPath = 'assets/audio/fondo/song.mp3';
-
-    this.init();
+    this.currentLevel = 1;
   }
 
-  /**
-   * Initialize the game
-   */
   async init() {
-    console.log('🎮 Initializing SensaBeat Game Engine...');
+    console.log('🎮 Initializing SensaBeat Memory Game...');
+    this.setupDOM();
+    this.audioManager = new AudioManager();
+    this.inputManager = new InputManager();
+    this.voiceManager = new VoiceManager();
 
-    try {
-      // Setup DOM
-      this.setupDOM();
+    this.audioManager.init(0.7, 0.5);
+    this.voiceManager.init();
+    this.inputManager.init(this.handleInput.bind(this));
 
-      // Load settings
-      this.loadSettings();
+    this.initializeUI();
+    this.createMuteButton();
 
-      // Initialize core systems
-      this.audioManager.init(this.settings.musicVolume, this.settings.sfxVolume);
-      this.inputManager.init(this.handleInput.bind(this));
+    console.log('✅ Game initialized successfully');
+  }
 
-      // Load all available songs
-      await this.chartLoader.loadAllSongs();
-      const songs = this.chartLoader.getSongs();
-      console.log(`📦 Loaded ${songs.length} songs`);
+  initWithLevel(level, isTutorial) {
+    this.currentLevel = level;
+    this.init();
 
-      // Initialize UI systems
-      this.initializeUI();
-
-      // Set initial state
-      this.changeState(this.STATE.MENU);
-
-      // Start background music
-      this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
-
-      // Add mute button to page
-      this.createMuteButton();
-
-      // Start game loop
-      this.startGameLoop();
-
-      console.log('✅ Game initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize game:', error);
-      this.showErrorDialog('Failed to initialize game. Please refresh the page.');
+    if (isTutorial) {
+      this.startTutorial();
+    } else {
+      this.startSimonGame();
     }
   }
 
-  /**
-   * Setup DOM elements
-   */
   setupDOM() {
-    this.gameContainer = document.getElementById('game-container') || document.body;
     this.canvas = document.getElementById('game-canvas');
-
     if (!this.canvas) {
       this.canvas = document.createElement('canvas');
       this.canvas.id = 'game-canvas';
-      this.gameContainer.appendChild(this.canvas);
+      document.body.appendChild(this.canvas);
     }
-
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
-
     window.addEventListener('resize', () => this.resizeCanvas());
   }
 
-  /**
-   * Create mute button in the top-right corner
-   */
+  resizeCanvas() {
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+
   createMuteButton() {
     const existingBtn = document.getElementById('mute-button');
     if (existingBtn) return;
@@ -150,7 +81,7 @@ class Game {
     const muteBtn = document.createElement('button');
     muteBtn.id = 'mute-button';
     muteBtn.innerHTML = '🔊';
-    muteBtn.title = 'Toggle background music';
+    muteBtn.title = 'Toggle sound';
     muteBtn.style.cssText = `
       position: fixed;
       top: 20px;
@@ -175,599 +106,93 @@ class Game {
       const isMuted = this.audioManager.toggleMute();
       muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
       muteBtn.style.borderColor = isMuted ? '#FF0080' : '#00FFFF';
-      muteBtn.style.boxShadow = isMuted ? '0 0 15px rgba(255, 0, 128, 0.3)' : '0 0 15px rgba(0, 255, 255, 0.3)';
-    });
-
-    muteBtn.addEventListener('mouseenter', () => {
-      muteBtn.style.transform = 'scale(1.1)';
-    });
-
-    muteBtn.addEventListener('mouseleave', () => {
-      muteBtn.style.transform = 'scale(1)';
     });
 
     document.body.appendChild(muteBtn);
   }
 
-  /**
-   * Resize canvas to fit window
-   */
-  resizeCanvas() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-  }
-
-  /**
-   * Initialize UI systems
-   */
   initializeUI() {
-    this.mainMenu = new MainMenu(this);
-    this.levelSelect = new LevelSelect(this);
-    this.gameplayUI = new GameplayUI(this);
-    this.gameplayUI.init();
-    this.resultsScreen = new ResultsScreen(this);
-    this.settingsScreen = new SettingsScreen(this);
+    this.tutorialScreen = new TutorialScreen(this);
+    this.simonUI = new SimonUI(this);
+    this.simonResultsScreen = new SimonResultsScreen(this);
   }
 
-  /**
-   * Change game state
-   */
   changeState(newState) {
     if (this.currentState === newState) return;
 
-    // Cleanup previous state
     this.hideAllUI();
-
     this.previousState = this.currentState;
     this.currentState = newState;
 
     console.log(`🔄 State changed: ${this.previousState} → ${newState}`);
 
-    // Stop background music when entering gameplay
-    if (newState === this.STATE.GAMEPLAY || newState === this.STATE.COUNTDOWN) {
-      this.audioManager.stopMusic();
-    }
-
-    // Setup new state
     switch (newState) {
-      case this.STATE.MENU:
-        this.uiVisible.mainMenu = true;
-        this.mainMenu.show();
-        if (!this.audioManager.isMusicPlaying) {
-          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
-        }
+      case this.STATE.TUTORIAL:
+        this.startTutorial();
         break;
 
-      case this.STATE.LEVEL_SELECT:
-        this.uiVisible.levelSelect = true;
-        this.levelSelect.show();
-        if (!this.audioManager.isMusicPlaying) {
-          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
-        }
-        break;
-
-      case this.STATE.GAMEPLAY:
-        this.uiVisible.gameplayUI = true;
-        this.gameplayUI.show();
-        this.startCountdown();
+      case this.STATE.SIMON_PLAY:
+        this.startSimonGame();
         break;
 
       case this.STATE.RESULTS:
-        this.uiVisible.resultsScreen = true;
-        if (this.gameplayUI) this.gameplayUI.hide();
-        this.resultsScreen.show();
-        if (!this.audioManager.isMusicPlaying) {
-          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
-        }
-        break;
-
-      case this.STATE.SETTINGS:
-        this.uiVisible.settingsScreen = true;
-        if (this.gameplayUI) this.gameplayUI.hide();
-        this.settingsScreen.show();
-        if (!this.audioManager.isMusicPlaying) {
-          this.audioManager.playBackgroundMusic(this.backgroundMusicPath, 0.25);
-        }
-        break;
-
-      case this.STATE.PAUSE:
-        this.audioManager.pauseMusic();
-        this.uiVisible.pauseMenu = true;
-        if (this.gameplayUI) this.gameplayUI.hide();
-        this.showPauseMenu();
         break;
     }
   }
 
-  /**
-   * Hide all UI elements
-   */
   hideAllUI() {
-    Object.keys(this.uiVisible).forEach(key => {
-      this.uiVisible[key] = false;
-    });
-
-    // Clear all UI containers
-    const containers = ['main-menu', 'level-select', 'gameplay-ui', 'results-screen', 'settings-screen', 'pause-menu'];
+    const containers = ['tutorial-screen', 'simon-ui', 'simon-results-screen'];
     containers.forEach(id => {
       const element = document.getElementById(id);
       if (element) element.style.display = 'none';
     });
+
+    if (this.simonUI) this.simonUI.hide();
+    if (this.tutorialScreen) this.tutorialScreen.hide();
+    if (this.simonResultsScreen) this.simonResultsScreen.hide();
   }
 
-  /**
-   * Start countdown before gameplay
-   */
-  async startCountdown() {
-    this.currentState = this.STATE.COUNTDOWN;
-    const countdownElement = document.getElementById('countdown');
+  startTutorial() {
+    this.tutorialScreen.onComplete = () => {
+      this.changeState(this.STATE.SIMON_PLAY);
+    };
+    this.tutorialScreen.show();
+  }
 
-    if (!countdownElement) {
-      const div = document.createElement('div');
-      div.id = 'countdown';
-      div.className = 'countdown';
-      this.gameContainer.appendChild(div);
+  startSimonGame() {
+    if (!this.simonGame) {
+      this.simonGame = new SimonGame(this, this.currentLevel);
     }
 
-    const element = document.getElementById('countdown');
+    this.simonUI.show();
+    this.simonUI.updateLevel(this.currentLevel);
 
-    for (let i = 3; i >= 1; i--) {
-      element.textContent = i;
-      element.style.display = 'block';
-      element.style.animation = 'none';
-      setTimeout(() => {
-        element.style.animation = 'countdownPulse 1s ease-out';
-      }, 10);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    this.simonGame.onGameOver = (results) => {
+      this.simonUI.hide();
+      this.simonResultsScreen.show(results, this.currentLevel);
+    };
 
-    element.textContent = 'GO!';
-    element.style.animation = 'countdownPulse 0.5s ease-out';
-    await new Promise(resolve => setTimeout(resolve, 500));
-    element.style.display = 'none';
+    this.simonGame.onScoreUpdate = (data) => {
+      this.simonUI.updateStats(data);
+    };
 
-    // Start gameplay
-    this.startGameplay();
+    this.simonGame.startGame();
   }
 
-  /**
-   * Start gameplay
-   */
-  startGameplay() {
-    this.currentState = this.STATE.GAMEPLAY;
-    this.scoreManager.reset();
-    this.currentNoteIndex = 0;
-
-    if (this.noteSpawner) {
-      this.noteSpawner.reset();
-    }
-
-    if (this.audioManager) {
-      this.audioManager.stopMusic();
-      this.audioManager.playMusic(
-        this.currentSong.audioPath,
-        this.currentChart.offsetMs / 1000,
-        () => this.endGameplay()
-      );
-    }
-  }
-
-  /**
-   * End gameplay and show results
-   */
-  endGameplay() {
-    this.audioManager.stopMusic();
-
-    if (this.gameplayUI) {
-      this.gameplayUI.hide();
-    }
-
-    const stats = this.scoreManager.getFinalStats();
-    const accuracy = this.scoreManager.getAccuracy();
-
-    console.log('🏁 Gameplay ended', {
-      score: stats.score,
-      combo: stats.maxCombo,
-      accuracy: accuracy
-    });
-
-    setTimeout(() => {
-      this.changeState(this.STATE.RESULTS);
-    }, 500);
-  }
-
-  /**
-   * Show pause menu
-   */
-  showPauseMenu() {
-    const pauseMenuId = 'pause-menu';
-    let pauseMenu = document.getElementById(pauseMenuId);
-
-    if (!pauseMenu) {
-      pauseMenu = document.createElement('div');
-      pauseMenu.id = pauseMenuId;
-      pauseMenu.className = 'pause-menu';
-      pauseMenu.innerHTML = `
-        <div class="pause-menu-content">
-          <h2>PAUSED</h2>
-          <button id="resume-button" class="btn btn-primary">Resume</button>
-          <button id="retry-button" class="btn btn-secondary">Retry</button>
-          <button id="menu-button" class="btn btn-secondary">Main Menu</button>
-        </div>
-      `;
-      this.gameContainer.appendChild(pauseMenu);
-    }
-
-    pauseMenu.style.display = 'flex';
-
-    document.getElementById('resume-button').onclick = () => this.resumeGameplay();
-    document.getElementById('retry-button').onclick = () => this.retryGameplay();
-    document.getElementById('menu-button').onclick = () => this.changeState(this.STATE.MENU);
-  }
-
-  /**
-   * Resume gameplay
-   */
-  resumeGameplay() {
-    this.currentState = this.STATE.GAMEPLAY;
-    this.audioManager.resumeMusic();
-    const pauseMenu = document.getElementById('pause-menu');
-    if (pauseMenu) pauseMenu.style.display = 'none';
-    if (this.gameplayUI) this.gameplayUI.show();
-  }
-
-  /**
-   * Retry current song
-   */
-  retryGameplay() {
-    this.changeState(this.STATE.GAMEPLAY);
-  }
-
-  /**
-   * Handle user input
-   */
   handleInput(key) {
-    // Map keys to lanes: D=0(Left), F=1(Down), J=2(Up), K=3(Right)
-    const keyToLane = {
-      'd': 0, 'D': 0,
-      'f': 1, 'F': 1,
-      'j': 2, 'J': 2,
-      'k': 3, 'K': 3
-    };
-
-    const lane = keyToLane[key];
-
-    if (lane !== undefined && this.currentState === this.STATE.GAMEPLAY) {
-      this.activateLane(lane);
-    }
-
-    // Pause on ESC
-    if (key === 'Escape' && this.currentState === this.STATE.GAMEPLAY) {
-      this.changeState(this.STATE.PAUSE);
-    }
-
-    // Back to menu
-    if (key === 'Escape' && this.currentState === this.STATE.LEVEL_SELECT) {
-      this.changeState(this.STATE.MENU);
-    }
-
-    if (key === 'Escape' && this.currentState === this.STATE.SETTINGS) {
-      this.changeState(this.STATE.MENU);
-    }
-  }
-
-  /**
-   * Activate a lane (note hit)
-   */
-  activateLane(laneIndex) {
-    if (!this.lanes[laneIndex]) return;
-
-    const lane = this.lanes[laneIndex];
-    lane.activate();
-
-    const currentTime = this.audioManager.getMusicTime();
-
-    let nearestNote = null;
-    let minDistance = Infinity;
-
-    for (const note of this.notes) {
-      if (note.lane === laneIndex && !note.isHit && !note.isMissed) {
-        const distance = Math.abs(currentTime - note.spawnTime);
-        if (distance < 0.35 && distance < minDistance) {
-          minDistance = distance;
-          nearestNote = note;
-        }
-      }
-    }
-
-    if (nearestNote) {
-      const accuracy = this.getHitAccuracy(currentTime, nearestNote.spawnTime);
-      nearestNote.markAsHit();
-
-      this.scoreManager.addHit(accuracy);
-
-      this.audioManager.playSFX(`hit-${accuracy.toLowerCase()}`);
-
-      lane.deactivate();
-
-      const vibrationIntensity = accuracy === 'PERFECT' ? 1.0 : (accuracy === 'GOOD' ? 0.85 : 0.7);
-      this.vibrateGamepad(laneIndex, vibrationIntensity);
-
-      if (this.gameplayUI) {
-        this.gameplayUI.updateScore(this.scoreManager.getScore());
-        this.gameplayUI.updateCombo(this.scoreManager.getCombo());
-        this.gameplayUI.updateAccuracy(this.scoreManager.getAccuracy());
-        this.gameplayUI.showHitEffect(laneIndex, accuracy);
-      }
-    } else {
-      this.vibrateGamepad(laneIndex, 0.5);
-      setTimeout(() => {
-        lane.deactivate();
-      }, 100);
-    }
-  }
-
-  /**
-   * Vibrate gamepad for haptic feedback based on lane
-   * More intense vibration for higher lanes (accessibility feature)
-   * @param {number} laneIndex - Lane index (0-3)
-   * @param {number} intensity - Vibration intensity multiplier (0-1)
-   */
-  vibrateGamepad(laneIndex, intensity) {
-    const baseVibration = [0.7, 0.8, 0.9, 1.0];
-    const vibrationStrength = Math.min(1.0, baseVibration[laneIndex] * intensity);
-
-    this.inputManager.vibrateGamepad(vibrationStrength, 200, 0);
-  }
-
-  /**
-   * Get accuracy based on timing
-   */
-  getHitAccuracy(currentTime, noteTime) {
-    const timeDifference = Math.abs(currentTime - noteTime);
-    const perfectWindow = 0.08;
-    const goodWindow = 0.2;
-
-    if (timeDifference <= perfectWindow) {
-      return 'PERFECT';
-    } else if (timeDifference <= goodWindow) {
-      return 'GOOD';
-    } else {
-      return 'MISS';
-    }
-  }
-
-  /**
-   * Update game logic
-   */
-  update(deltaTime) {
-    if (this.currentState !== this.STATE.GAMEPLAY) return;
-
-    const musicTime = this.audioManager.getMusicTime();
-
-    if (this.noteSpawner) {
-      this.noteSpawner.update(musicTime);
-    }
-
-    this.notes.forEach(note => {
-      note.update(deltaTime, musicTime);
-    });
-
-    this.notes = this.notes.filter(note => {
-      if (note.checkMissed()) {
-        this.scoreManager.addMiss();
-        if (this.gameplayUI) {
-          this.gameplayUI.showHitEffect(note.lane, 'MISS');
-        }
-        this.vibrateGamepad(note.lane, 0.6);
-        return false;
-      }
-      return true;
-    });
-
-    this.lanes.forEach(lane => lane.update(deltaTime));
-
-    if (this.gameplayUI) {
-      this.gameplayUI.updateHealth(this.scoreManager.getHealth());
-    }
-
-    if (this.scoreManager.getHealth() <= 0) {
-      this.endGameplay();
-    }
-  }
-
-  /**
-   * Render game
-   */
-  render() {
-    this.ctx.fillStyle = '#0a0a15';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    if (this.currentState === this.STATE.COUNTDOWN) {
-      this.ctx.fillStyle = '#333333';
-      this.ctx.font = '14px monospace';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('GET READY...', this.canvas.width / 2, 50);
-    }
-
-    if (this.currentState === this.STATE.GAMEPLAY || this.currentState === this.STATE.COUNTDOWN) {
-      if (this.lanes.length > 0) {
-        this.lanes.forEach(lane => lane.render(this.ctx));
-      }
-
-      if (this.notes.length > 0) {
-        this.notes.forEach(note => note.render(this.ctx));
-      }
-
-      if (this.gameplayUI) {
-        this.gameplayUI.render(this.ctx);
-      }
-    }
-
-    if (this.settings.showDebug) {
-      this.renderDebugInfo();
-    }
-  }
-
-  /**
-   * Render debug information
-   */
-  renderDebugInfo() {
-    const musicTime = this.audioManager.getMusicTime();
-
-    this.ctx.fillStyle = '#00FF00';
-    this.ctx.font = '12px monospace';
-    const debugInfo = [
-      `FPS: ${Math.round(1000 / Math.max(1, this.deltaTime))}`,
-      `State: ${this.currentState}`,
-      `MusicTime: ${musicTime.toFixed(3)}s`,
-      `Notes: ${this.notes.length}`,
-      `SpawnerIndex: ${this.noteSpawner ? this.noteSpawner.currentNoteIndex : 'null'}`,
-      `Score: ${this.scoreManager.getScore()}`,
-      `Combo: ${this.scoreManager.getCombo()}`,
-      `Health: ${this.scoreManager.getHealth().toFixed(0)}%`
-    ];
-
-    debugInfo.forEach((info, i) => {
-      this.ctx.fillText(info, 10, 20 + i * 20);
-    });
-  }
-
-  /**
-   * Start game loop
-   */
-  startGameLoop() {
-    this.isRunning = true;
-    const gameLoop = (currentTime) => {
-      if (!this.lastFrameTime) {
-        this.lastFrameTime = currentTime;
-      }
-
-      this.deltaTime = (currentTime - this.lastFrameTime) / 1000;
-      this.lastFrameTime = currentTime;
-
-      if (this.deltaTime > 0.5) {
-        this.deltaTime = 0.016;
-      }
-
-      this.update(this.deltaTime);
-      this.render();
-
-      this.animationFrameId = requestAnimationFrame(gameLoop);
-    };
-
-    this.animationFrameId = requestAnimationFrame(gameLoop);
-  }
-
-  /**
-   * Stop game loop
-   */
-  stopGameLoop() {
-    this.isRunning = false;
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-    }
-  }
-
-  /**
-   * Load song for gameplay
-   */
-  async loadSong(song) {
-    try {
-      this.currentSong = song;
-      this.notes = [];
-
-      this.currentChart = await this.chartLoader.loadChart(song.chartPath);
-
-      console.log(`📊 Chart loaded:`, {
-        bpm: this.currentChart.bpm,
-        offsetMs: this.currentChart.offsetMs,
-        totalNotes: this.currentChart.totalNotes,
-        notesArray: this.currentChart.notes.length
-      });
-
-      this.initializeLanes();
-
-      this.noteSpawner = new NoteSpawner(this.currentChart, this.lanes, (note) => {
-        this.notes.push(note);
-      });
-
-      console.log(`🎵 Loaded song: ${song.name} | Notes to spawn: ${this.currentChart.notes.length}`);
-      return true;
-    } catch (error) {
-      console.error('Failed to load song:', error);
-      this.showErrorDialog(`Failed to load song: ${song.name}`);
-      return false;
-    }
-  }
-
-  /**
-   * Initialize game lanes
-   */
-  initializeLanes() {
-    this.lanes = [];
-    const laneWidth = this.canvas.width / 4;
-    const laneNames = ['LEFT', 'DOWN', 'UP', 'RIGHT'];
-    const keyGuides = ['D', 'F', 'J', 'K'];
-
-    for (let i = 0; i < 4; i++) {
-      this.lanes.push(new Lane(
-        i,
-        i * laneWidth,
-        laneWidth,
-        this.canvas.height,
-        laneNames[i],
-        keyGuides[i]
-      ));
-    }
-  }
-
-  /**
-   * Get available songs
-   */
-  getSongs() {
-    return this.chartLoader.getSongs();
-  }
-
-  /**
-   * Load settings from localStorage
-   */
-  loadSettings() {
-    const saved = localStorage.getItem('gameSettings');
-    if (saved) {
-      try {
-        Object.assign(this.settings, JSON.parse(saved));
-      } catch (e) {
-        console.warn('Failed to load settings');
+    if (key === 'Escape') {
+      switch (this.currentState) {
+        case this.STATE.TUTORIAL:
+        case this.STATE.SIMON_PLAY:
+          window.location.href = 'index.html';
+          break;
       }
     }
   }
 
-  /**
-   * Save settings to localStorage
-   */
-  saveSettings() {
-    localStorage.setItem('gameSettings', JSON.stringify(this.settings));
-  }
-
-  /**
-   * Show error dialog
-   */
-  showErrorDialog(message) {
-    alert(message);
-  }
-
-  /**
-   * Get game canvas context
-   */
-  getCanvasContext() {
-    return this.ctx;
-  }
-
-  /**
-   * Get game canvas
-   */
-  getCanvas() {
-    return this.canvas;
+  goToMenu() {
+    window.location.href = 'index.html';
   }
 }
+
+window.Game = Game;

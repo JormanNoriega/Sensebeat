@@ -12,33 +12,40 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="game-container">
-    <canvas id="game-canvas"></canvas>
-  </div>
+  <div id="main-menu-container"></div>
 
   <script src="src/core/AudioManager.js"></script>
   <script src="src/core/InputManager.js"></script>
   <script src="src/core/VoiceManager.js"></script>
-  <script src="src/core/SimonGame.js"></script>
-  <script src="src/ui/TutorialScreen.js"></script>
-  <script src="src/ui/SimonUI.js"></script>
-  <script src="src/ui/SimonResultsScreen.js"></script>
-  <script src="src/core/Game.js"></script>
+  <script src="src/ui/MainMenu.js"></script>
 
   <script>
-    let game;
-
-    function getQueryParam(param) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(param);
-    }
+    let mainMenu;
+    let audioManager;
+    const BACKGROUND_MUSIC_PATH = 'assets/audio/fondo/menu.mp3';
 
     function init() {
-      const level = getQueryParam('level') || 1;
-      const isTutorial = getQueryParam('tutorial') === 'true';
+      audioManager = new AudioManager();
+      audioManager.init(0.7, 0.5);
 
-      game = new Game();
-      game.initWithLevel(parseInt(level), isTutorial);
+      mainMenu = new MainMenu({
+        onStartGame: (level) => {
+          window.location.href = `game.html?level=${level}`;
+        }
+      });
+
+      mainMenu.show();
+
+      audioManager.playBackgroundMusic(BACKGROUND_MUSIC_PATH, 0.3);
+
+      const muteBtn = document.getElementById('mute-button');
+      if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+          const isMuted = audioManager.toggleMute();
+          muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
+          muteBtn.style.borderColor = isMuted ? '#FF0080' : '#00FFFF';
+        });
+      }
     }
 
     window.addEventListener('DOMContentLoaded', init);

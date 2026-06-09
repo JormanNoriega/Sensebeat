@@ -23,7 +23,11 @@ class InputManager {
       'up': ['j', 'J', 'ArrowUp'],
       'right': ['k', 'K', 'ArrowRight'],
       'escape': ['Escape'],
-      'pause': ['p', 'P', ' ']
+      'pause': ['p', 'P', ' '],
+      'l1': ['d', 'D'],
+      'l2': ['f', 'F'],
+      'r1': ['j', 'J'],
+      'r2': ['k', 'K']
     };
 
     // Debounce
