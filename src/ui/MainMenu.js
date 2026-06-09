@@ -1,12 +1,16 @@
 /**
  * MainMenu.js - Main menu for Simon Memory Game
- * Shows level selection and game options
+ * Shows level selection with keyboard/gamepad navigation
  */
 
 class MainMenu {
   constructor(gameController) {
     this.gameController = gameController;
     this.container = null;
+    this.selectedIndex = 0;
+    this.buttons = [];
+    this.voiceManager = new VoiceManager();
+    this.voiceManager.init();
   }
 
   show() {
@@ -17,6 +21,7 @@ class MainMenu {
     if (this.container) {
       this.container.style.display = 'none';
     }
+    document.removeEventListener('keydown', this.handleKeyDown.bind(this));
   }
 
   render() {
@@ -50,26 +55,26 @@ class MainMenu {
             <p class="tagline">JUEGO DE MEMORIA</p>
           </div>
 
-          <div class="menu-buttons">
-            <button id="btn-nivel-1" class="arcade-btn level-btn" data-level="1">
+          <div class="menu-buttons" id="menu-buttons">
+            <button id="btn-nivel-1" class="arcade-btn level-btn selected" data-level="1" data-index="0">
               <span class="btn-icon">▶</span>
               <span class="btn-label">NIVEL 1</span>
               <span class="btn-desc">FÁCIL</span>
             </button>
 
-            <button id="btn-nivel-2" class="arcade-btn level-btn" data-level="2">
+            <button id="btn-nivel-2" class="arcade-btn level-btn" data-level="2" data-index="1">
               <span class="btn-icon">▶</span>
               <span class="btn-label">NIVEL 2</span>
               <span class="btn-desc">NORMAL</span>
             </button>
 
-            <button id="btn-nivel-3" class="arcade-btn level-btn" data-level="3">
+            <button id="btn-nivel-3" class="arcade-btn level-btn" data-level="3" data-index="2">
               <span class="btn-icon">▶</span>
               <span class="btn-label">NIVEL 3</span>
               <span class="btn-desc">DIFÍCIL</span>
             </button>
 
-            <button id="btn-tutorial" class="arcade-btn tutorial-btn">
+            <button id="btn-tutorial" class="arcade-btn tutorial-btn" data-index="3">
               <span class="btn-icon">?</span>
               <span class="btn-label">TUTORIAL</span>
             </button>
@@ -77,24 +82,25 @@ class MainMenu {
 
           <div class="controls-preview">
             <div class="keys-display">
-              <div class="key-box" data-key="D" style="border-color: #FF0080;">
+              <div class="key-box" style="border-color: #FF0080;">
                 <span class="key-letter" style="color: #FF0080;">L1</span>
-                <span class="key-label">IZQ. SUP.</span>
+                <span class="key-label">D</span>
               </div>
-              <div class="key-box" data-key="F" style="border-color: #00FFFF;">
+              <div class="key-box" style="border-color: #00FFFF;">
                 <span class="key-letter" style="color: #00FFFF;">L2</span>
-                <span class="key-label">IZQ.</span>
+                <span class="key-label">F</span>
               </div>
-              <div class="key-box" data-key="J" style="border-color: #FFFF00;">
+              <div class="key-box" style="border-color: #FFFF00;">
                 <span class="key-letter" style="color: #FFFF00;">R1</span>
-                <span class="key-label">DER. SUP.</span>
+                <span class="key-label">J</span>
               </div>
-              <div class="key-box" data-key="K" style="border-color: #00FF00;">
+              <div class="key-box" style="border-color: #00FF00;">
                 <span class="key-letter" style="color: #00FF00;">R2</span>
-                <span class="key-label">DER.</span>
+                <span class="key-label">K</span>
               </div>
             </div>
-            <p class="controls-hint-text">USA D F J K O EL MANDO</p>
+            <p class="controls-hint-text">USA ↑↓ O D-PAD PARA NAVEGAR</p>
+            <p class="controls-hint-text">ENTER O A PARA SELECCIONAR</p>
           </div>
 
           <div class="insert-coin-text">
@@ -109,25 +115,128 @@ class MainMenu {
     `;
 
     this.container = container;
+    this.buttons = document.querySelectorAll('.level-btn, .tutorial-btn');
+    this.selectedIndex = 0;
+    this.updateSelection();
+
     this.attachEventListeners();
+    this.setupNavigation();
     this.startScanlineEffect();
+
+    this.voiceManager.speak('Bienvenido a Sensabeat. Usa las flechas arriba y abajo para navegar, enter para seleccionar.');
   }
 
   attachEventListeners() {
-    document.querySelectorAll('.level-btn').forEach(btn => {
+    this.buttons.forEach((btn, index) => {
       btn.addEventListener('click', () => {
-        const level = parseInt(btn.dataset.level);
-        if (this.gameController.onStartGame) {
-          this.gameController.onStartGame(level);
-        }
+        this.selectButton(index);
+      });
+
+      btn.addEventListener('mouseenter', () => {
+        this.selectedIndex = index;
+        this.updateSelection();
       });
     });
+  }
 
-    const tutorialBtn = document.getElementById('btn-tutorial');
-    if (tutorialBtn) {
-      tutorialBtn.addEventListener('click', () => {
-        window.location.href = 'game.html?tutorial=true';
-      });
+  setupNavigation() {
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+
+    this.gamepadInterval = setInterval(() => {
+      this.pollGamepad();
+    }, 50);
+  }
+
+  handleKeyDown(e) {
+    const totalButtons = this.buttons.length;
+
+    switch (e.key) {
+      case 'ArrowUp':
+      case 'w':
+      case 'W':
+        e.preventDefault();
+        this.selectedIndex = (this.selectedIndex - 1 + totalButtons) % totalButtons;
+        this.updateSelection();
+        this.announceSelection();
+        break;
+
+      case 'ArrowDown':
+      case 's':
+      case 'S':
+        e.preventDefault();
+        this.selectedIndex = (this.selectedIndex + 1) % totalButtons;
+        this.updateSelection();
+        this.announceSelection();
+        break;
+
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        this.selectButton(this.selectedIndex);
+        break;
+    }
+  }
+
+  pollGamepad() {
+    const gamepads = navigator.getGamepads();
+    if (!gamepads) return;
+
+    for (let i = 0; i < gamepads.length; i++) {
+      const gamepad = gamepads[i];
+      if (!gamepad) continue;
+
+      const pressed = gamepad.buttons[12]?.pressed || gamepad.buttons[13]?.pressed ||
+                     gamepad.buttons[0]?.pressed;
+
+      if (pressed && !this.gamepadPressed) {
+        if (gamepad.buttons[12]?.pressed || gamepad.buttons[13]?.pressed) {
+          const isDown = gamepad.buttons[13]?.pressed;
+          const totalButtons = this.buttons.length;
+
+          if (isDown) {
+            this.selectedIndex = (this.selectedIndex + 1) % totalButtons;
+          } else {
+            this.selectedIndex = (this.selectedIndex - 1 + totalButtons) % totalButtons;
+          }
+
+          this.updateSelection();
+          this.announceSelection();
+        }
+
+        if (gamepad.buttons[0]?.pressed) {
+          this.selectButton(this.selectedIndex);
+        }
+      }
+
+      this.gamepadPressed = pressed;
+    }
+  }
+
+  updateSelection() {
+    this.buttons.forEach((btn, index) => {
+      btn.classList.toggle('selected', index === this.selectedIndex);
+    });
+  }
+
+  announceSelection() {
+    const button = this.buttons[this.selectedIndex];
+    const label = button.querySelector('.btn-label')?.textContent || '';
+    const desc = button.querySelector('.btn-desc')?.textContent || '';
+
+    this.voiceManager.speak(`${label}${desc ? `. ${desc}` : ''}`);
+  }
+
+  selectButton(index) {
+    const button = this.buttons[index];
+    const level = button.dataset.level;
+    const isTutorial = button.id === 'btn-tutorial';
+
+    this.voiceManager.speak('Seleccionado');
+
+    if (isTutorial) {
+      window.location.href = 'game.html?tutorial=true';
+    } else if (level) {
+      window.location.href = `game.html?level=${level}`;
     }
   }
 
@@ -185,6 +294,9 @@ class MainMenu {
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
+    }
+    if (this.gamepadInterval) {
+      clearInterval(this.gamepadInterval);
     }
   }
 }

@@ -1,12 +1,17 @@
 /**
  * SimonUI.js - Visual interface for Simon game
- * Renders the 4 buttons in a retro style
+ * Renders the 4 buttons in a retro style with keyboard letters
+ * Layout: L1 R1 on top row, L2 R2 on bottom row (matching gamepad layout)
  */
 
 class SimonUI {
   constructor(game) {
     this.game = game;
     this.container = null;
+    this.selectedIndex = 0;
+    this.buttons = ['L1', 'L2', 'R1', 'R2'];
+    this.voiceManager = new VoiceManager();
+    this.voiceManager.init();
   }
 
   show() {
@@ -17,6 +22,8 @@ class SimonUI {
     if (this.container) {
       this.container.style.display = 'none';
     }
+    document.removeEventListener('keydown', this.handleResultsKeyDown.bind(this));
+    if (this.gamepadInterval) clearInterval(this.gamepadInterval);
   }
 
   render() {
@@ -35,7 +42,7 @@ class SimonUI {
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: linear-gradient(180deg, #0a0a15 0%, #1a1a2e 50%, #0a0a15 100%);
+      background: radial-gradient(ellipse at center, #1a0a2e 0%, #0a0a15 70%);
       flex-direction: column;
       align-items: center;
       justify-content: center;
@@ -44,9 +51,15 @@ class SimonUI {
     `;
 
     container.innerHTML = `
+      <div class="crt-flicker"></div>
+
       <div class="simon-header">
         <div class="simon-title-section">
-          <h1 class="simon-title">SENSA<span class="accent">BEAT</span></h1>
+          <h1 class="simon-title">
+            <span class="logo-note">◎</span>
+            <span class="logo-text">SENSA</span>
+            <span class="logo-beat">BEAT</span>
+          </h1>
           <p class="simon-level-name" id="simon-level-name">NIVEL 1 - FÁCIL</p>
         </div>
       </div>
@@ -67,56 +80,61 @@ class SimonUI {
       </div>
 
       <div class="simon-buttons-area">
-        <div class="simon-row">
-          <div class="simon-button-wrapper" id="simon-wrapper-L1">
-            <div class="simon-button" id="simon-L1" data-button="L1">
-              <div class="button-inner">
-                <span class="button-key">L1</span>
-                <span class="button-name">IZQ. SUP.</span>
+        <div class="simon-grid">
+          <div class="simon-button-wrapper">
+            <div class="simon-button selected" id="simon-L1" data-button="L1">
+              <div class="button-labels">
+                <span class="button-gamepad">L1</span>
+                <span class="button-keyboard">D</span>
               </div>
+              <span class="button-desc">IZQ. SUP.</span>
             </div>
           </div>
 
-          <div class="simon-button-wrapper" id="simon-wrapper-L2">
-            <div class="simon-button" id="simon-L2" data-button="L2">
-              <div class="button-inner">
-                <span class="button-key">L2</span>
-                <span class="button-name">IZQ.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="simon-status-area">
-          <div class="status-indicator" id="simon-status">
-            <span class="status-text">ESPERANDO...</span>
-          </div>
-        </div>
-
-        <div class="simon-row">
-          <div class="simon-button-wrapper" id="simon-wrapper-R1">
+          <div class="simon-button-wrapper">
             <div class="simon-button" id="simon-R1" data-button="R1">
-              <div class="button-inner">
-                <span class="button-key">R1</span>
-                <span class="button-name">DER. SUP.</span>
+              <div class="button-labels">
+                <span class="button-gamepad">R1</span>
+                <span class="button-keyboard">J</span>
               </div>
+              <span class="button-desc">DER. SUP.</span>
             </div>
           </div>
 
-          <div class="simon-button-wrapper" id="simon-wrapper-R2">
-            <div class="simon-button" id="simon-R2" data-button="R2">
-              <div class="button-inner">
-                <span class="button-key">R2</span>
-                <span class="button-name">DER.</span>
+          <div class="simon-button-wrapper">
+            <div class="simon-button" id="simon-L2" data-button="L2">
+              <div class="button-labels">
+                <span class="button-gamepad">L2</span>
+                <span class="button-keyboard">F</span>
               </div>
+              <span class="button-desc">IZQ.</span>
             </div>
           </div>
+
+          <div class="simon-button-wrapper">
+            <div class="simon-button" id="simon-R2" data-button="R2">
+              <div class="button-labels">
+                <span class="button-gamepad">R2</span>
+                <span class="button-keyboard">K</span>
+              </div>
+              <span class="button-desc">DER.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="simon-status-area">
+        <div class="status-indicator" id="simon-status">
+          <span class="status-text">ESPERANDO...</span>
         </div>
       </div>
 
       <div class="simon-controls-hint">
-        <p>Presiona ESC para volver al menú</p>
+        <p>USA D F J K PARA JUGAR</p>
+        <p>ESC PARA VOLVER AL MENÚ</p>
       </div>
+
+      <div class="ambient-glow"></div>
     `;
 
     this.container = container;
@@ -183,6 +201,12 @@ class SimonUI {
     if (this.container) {
       this.container.remove();
       this.container = null;
+    }
+  }
+
+  handleResultsKeyDown(e) {
+    if (e.key === 'Escape') {
+      window.location.href = 'index.html';
     }
   }
 }
